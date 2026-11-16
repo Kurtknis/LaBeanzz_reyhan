@@ -1,6 +1,6 @@
 from flask import Flask
 from .config import config_map
-from .extensions import db, migrate, cors
+from .extensions import db, migrate, cors, limiter
 
 
 def create_app(env: str = "development") -> Flask:
@@ -10,6 +10,7 @@ def create_app(env: str = "development") -> Flask:
     # Extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
     cors.init_app(
         app,
         resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
@@ -21,10 +22,12 @@ def create_app(env: str = "development") -> Flask:
     from .routes.auth import auth_bp
     from .routes.coffee_beans import beans_bp
     from .routes.suppliers import suppliers_bp
+    from .routes.ai import ai_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(beans_bp, url_prefix="/api")
     app.register_blueprint(suppliers_bp, url_prefix="/api")
+    app.register_blueprint(ai_bp, url_prefix="/api")
 
     return app
