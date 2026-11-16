@@ -26,6 +26,7 @@ from ..extensions import db
 from ..models.coffee_bean import CoffeeBean
 from ..models.ai_generation import AIGeneration
 from ..models.owner_profile import OwnerProfile
+from ..models.preset import Preset
 from ..schemas.ai import LLMBlendOutput, GenerateBlendRequest
 from . import ai_service, rag_service
 
@@ -276,6 +277,28 @@ def generate_blend(
 
     # 2. Taste adjustments
     taste_adjustments = _get_taste_adjustments(owner_id)
+
+    # 1b. Merge preset into request if provided
+    if request.preset_id:
+        preset = Preset.query.filter_by(id=request.preset_id, owner_id=owner_id).first()
+        if preset:
+            # Merge preset style and prefs into the request prompt context
+            preset_lines = [f"Preferred brew style: {preset.coffee_style or request.style}"]
+            if preset.acidity_pref is not None:
+                preset_lines.append(f"Target acidity: {float(preset.acidity_pref)}/10")
+            if preset.body_pref is not None:
+                preset_lines.append(f"Target body: {float(preset.body_pref)}/10")
+            if preset.sweetness_pref is not None:
+                preset_lines.append(f"Target sweetness: {float(preset.sweetness_pref)}/10")
+            if preset.notes:
+                preset_lines.append(f"Additional notes: {preset.notes}")
+            # Extend the original prompt with preset context
+            request = GenerateBlendRequest(
+                prompt=request.prompt + "\n\nPreset preferences:\n" + "\n".join(preset_lines),
+                style=preset.coffee_style or request.style,
+                preset_id=request.preset_id,
+                max_price_per_kg=request.max_price_per_kg,
+            )
 
     # 3. RAG retrieval
     query_for_rag = f"{request.prompt} style:{request.style}"

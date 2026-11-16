@@ -46,6 +46,12 @@ export default async function OwnerDashboardPage() {
       icon: "☕",
     },
     {
+      title: "Presets",
+      description: "Save flavor targets to speed up generation.",
+      href: "/dashboard/owner/presets",
+      icon: "⭐",
+    },
+    {
       title: "Suppliers",
       description: "Browse the supplier directory.",
       href: "/dashboard/owner/suppliers",

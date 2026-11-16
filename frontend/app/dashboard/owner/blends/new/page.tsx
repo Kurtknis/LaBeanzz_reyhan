@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   generateBlend,
   type BlendDraft,
   type BlendStyle,
 } from "@/lib/api/ai";
+import { getPresets, type Preset } from "@/lib/api/presets";
 import { ApiError } from "@/lib/api/client";
 import { RecipePercentageBar } from "@/components/features/RecipePercentageBar";
 import { AIReasoningPanel } from "@/components/features/AIReasoningPanel";
@@ -27,6 +29,9 @@ const EXAMPLE_PROMPTS = [
 ];
 
 export default function NewBlendPage() {
+  const searchParams = useSearchParams();
+  const urlPresetId = searchParams.get("preset_id");
+
   const [prompt, setPrompt]           = useState("");
   const [style, setStyle]             = useState<BlendStyle>("espresso");
   const [maxPrice, setMaxPrice]       = useState("");
@@ -34,6 +39,20 @@ export default function NewBlendPage() {
   const [draft, setDraft]             = useState<BlendDraft | null>(null);
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [error, setError]             = useState<string | null>(null);
+
+  const [presets, setPresets]         = useState<Preset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(urlPresetId ?? "");
+
+  useEffect(() => {
+    getPresets().then((r) => setPresets(r.items)).catch(() => {});
+  }, []);
+
+  // When a preset is selected, pre-fill style
+  useEffect(() => {
+    if (!selectedPresetId) return;
+    const p = presets.find((pr) => pr.id === selectedPresetId);
+    if (p?.coffee_style) setStyle(p.coffee_style as BlendStyle);
+  }, [selectedPresetId, presets]);
 
   function handleExampleClick(text: string) {
     setPrompt(text);
@@ -52,6 +71,7 @@ export default function NewBlendPage() {
         const result = await generateBlend({
           prompt: prompt.trim(),
           style,
+          preset_id: selectedPresetId || null,
           max_price_per_kg: maxPrice ? parseFloat(maxPrice) : null,
         });
         setDraft(result.draft);
@@ -181,6 +201,27 @@ export default function NewBlendPage() {
             />
           </div>
         </div>
+
+        {/* Preset selector */}
+        {presets.length > 0 && (
+          <div className="mb-6 flex flex-col gap-1.5">
+            <label htmlFor="preset" className="text-sm font-medium text-text">
+              Preset{" "}
+              <span className="font-normal text-text-3">(optional)</span>
+            </label>
+            <select
+              id="preset"
+              value={selectedPresetId}
+              onChange={(e) => setSelectedPresetId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">No preset</option>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {error && (
           <p

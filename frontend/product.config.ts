@@ -112,6 +112,8 @@ export const BLEND_STATUS = {
 
 export type BlendStatus = keyof typeof BLEND_STATUS;
 
+export type BlendStyle = "espresso" | "filter" | "milk";
+
 // ─── Pagination default ───────────────────────────────────────────────────────
 
 export const PAGE_SIZE = 20;

@@ -23,11 +23,13 @@ def create_app(env: str = "development") -> Flask:
     from .routes.coffee_beans import beans_bp
     from .routes.suppliers import suppliers_bp
     from .routes.ai import ai_bp
+    from .routes.blends import blends_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(beans_bp, url_prefix="/api")
     app.register_blueprint(suppliers_bp, url_prefix="/api")
     app.register_blueprint(ai_bp, url_prefix="/api")
+    app.register_blueprint(blends_bp, url_prefix="/api")
 
     return app

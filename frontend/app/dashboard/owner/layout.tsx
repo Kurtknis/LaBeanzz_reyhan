@@ -10,6 +10,7 @@ export const instant = false;
 const NAV = [
   { href: "/dashboard/owner", label: "Dashboard", icon: "⬛" },
   { href: "/dashboard/owner/blends", label: "My Blends", icon: "☕" },
+  { href: "/dashboard/owner/presets", label: "Presets", icon: "⭐" },
   { href: "/dashboard/owner/beans", label: "Browse Beans", icon: "🌱" },
   { href: "/dashboard/owner/suppliers", label: "Suppliers", icon: "🏢" },
   { href: "/dashboard/owner/orders", label: "Orders", icon: "📦" },
