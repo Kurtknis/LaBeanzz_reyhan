@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api/client";
 import { FlavorBar } from "@/components/ui/FlavorBar";
 import { BLEND_STATUS, type BlendStatus } from "@/product.config";
 import { BlendActions } from "./BlendActions";
+import { FeedbackSection } from "@/components/features/FeedbackSection";
 
 export const instant = false;
 
@@ -153,6 +154,17 @@ export default async function BlendDetailPage({ params }: Props) {
 
       {/* Actions */}
       <BlendActions blend={blend} />
+
+      {/* Feedback */}
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text">Feedback</h2>
+          <span className="text-xs text-text-3">
+            Adjusted using your previous feedback
+          </span>
+        </div>
+        <FeedbackSection blendId={blend.id} />
+      </div>
     </div>
   );
 }

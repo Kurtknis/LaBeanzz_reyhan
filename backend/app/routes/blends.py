@@ -9,7 +9,8 @@ from ..schemas.blends import (
     CreatePresetRequest,
     PatchPresetRequest,
 )
-from ..services import blend_service, preset_service
+from ..schemas.feedback import CreateFeedbackRequest
+from ..services import blend_service, preset_service, feedback_service
 
 blends_bp = Blueprint("blends", __name__)
 
@@ -172,3 +173,37 @@ def delete_preset(preset_id):
 
     preset_service.delete_preset(preset)
     return "", 204
+
+
+# ─── Feedback ─────────────────────────────────────────────────────────────────
+
+@blends_bp.post("/blends/<uuid:blend_id>/feedback")
+@require_auth
+@require_role("OWNER")
+def submit_feedback(blend_id):
+    """Submit a feedback rating for one of the owner's blends."""
+    blend = blend_service.get_blend(blend_id, g.current_user.id)
+    if blend is None:
+        return jsonify({"error": "Not found."}), 404
+
+    try:
+        body = CreateFeedbackRequest.model_validate(request.get_json(silent=True) or {})
+    except ValidationError as exc:
+        return jsonify({"error": exc.errors()}), 422
+
+    fb = feedback_service.submit_feedback(blend, g.current_user.id, body)
+    return jsonify(fb.to_dict()), 201
+
+
+@blends_bp.get("/blends/<uuid:blend_id>/feedback")
+@require_auth
+@require_role("OWNER")
+def list_feedback(blend_id):
+    """Return all feedback for the blend (owner-scoped)."""
+    # Confirm ownership — 404 if not theirs
+    blend = blend_service.get_blend(blend_id, g.current_user.id)
+    if blend is None:
+        return jsonify({"error": "Not found."}), 404
+
+    items = feedback_service.list_feedback(blend_id, g.current_user.id)
+    return jsonify({"items": [f.to_dict() for f in items]}), 200
