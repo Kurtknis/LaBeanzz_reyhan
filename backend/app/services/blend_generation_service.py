@@ -260,16 +260,25 @@ def _estimate_notes(recipe: list, bean_map: dict[str, CoffeeBean]) -> dict:
 def generate_blend(
     request: GenerateBlendRequest,
     owner_id: uuid.UUID,
+    *,
+    exclude_bean_ids: set[str] | None = None,
+    kind: str = "GENERATE",
 ) -> dict[str, Any]:
     """
     Full generation pipeline. Returns a draft dict on success.
     Raises ValueError with a user-safe message on permanent failure.
     Logs everything to ai_generations regardless of outcome.
+
+    exclude_bean_ids removes beans from the candidate set (used by substitute,
+    which must not propose the bean it is replacing). kind is the label stored
+    on the ai_generations row.
     """
     model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
     # 1. Candidates
     candidates = _get_candidate_beans(request.max_price_per_kg)
+    if exclude_bean_ids:
+        candidates = [b for b in candidates if str(b.id) not in exclude_bean_ids]
     if not candidates:
         raise ValueError("No beans are currently available. Add stock before generating a blend.")
 
@@ -391,7 +400,7 @@ def generate_blend(
     # 8. Log to ai_generations
     generation = AIGeneration(
         owner_id=owner_id,
-        kind="GENERATE",
+        kind=kind,
         input=request.model_dump(),
         retrieved_chunk_ids=chunk_ids if chunk_ids else None,
         raw_output=raw_output or None,
@@ -403,6 +412,11 @@ def generate_blend(
     )
     db.session.add(generation)
     db.session.commit()
+
+    if final_status == "ERROR":
+        # Provider/network failure. The detail is in ai_generations.error; it can
+        # contain upstream account or key information, so it is never sent to the client.
+        raise RuntimeError("AI provider call failed")
 
     if final_status != "OK":
         raise ValueError(

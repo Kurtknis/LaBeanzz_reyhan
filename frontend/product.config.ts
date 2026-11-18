@@ -89,6 +89,7 @@ export const ORDER_STATUS = {
   READY: { label: "Ready", step: 3 },
   SHIPPED: { label: "Shipped", step: 4 },
   DELIVERED: { label: "Delivered", step: 5 },
+  COMPLETED: { label: "Completed", step: 6 },
   CANCELLED: { label: "Cancelled", step: -1 },
 } as const;
 
@@ -101,6 +102,51 @@ export const ORDER_TIMELINE = [
   "SHIPPED",
   "DELIVERED",
 ] as const satisfies OrderStatus[];
+
+/** Segment labels. These are display text only; the stored statuses never change. */
+export const ORDER_TIMELINE_LABELS: Record<(typeof ORDER_TIMELINE)[number], string> = {
+  CONFIRMED: "Confirmed",
+  PREPARING: "Blending",
+  READY: "Ready",
+  SHIPPED: "Shipped",
+  DELIVERED: "Delivered",
+};
+
+export const ORDER_PENDING_NOTE = "Awaiting supplier";
+
+/** UI hints only. The API enforces who may make which move. */
+export const SUPPLIER_NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  PENDING: "CONFIRMED",
+  CONFIRMED: "PREPARING",
+  PREPARING: "READY",
+  READY: "SHIPPED",
+  SHIPPED: "DELIVERED",
+};
+
+export const SUPPLIER_ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
+  CONFIRMED: "Confirm order",
+  PREPARING: "Start blending",
+  READY: "Mark ready",
+  SHIPPED: "Mark shipped",
+  DELIVERED: "Mark delivered",
+};
+
+export const OWNER_CANCELLABLE: OrderStatus[] = ["PENDING", "CONFIRMED"];
+export const FINISHED_ORDER_STATUSES: OrderStatus[] = ["COMPLETED", "CANCELLED"];
+
+// ─── Insights ────────────────────────────────────────────────────────────────
+
+export const REORDER_SOON_LABEL = "Reorder soon";
+
+/** "2026-11" -> "Nov 2026" */
+export function formatMonth(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(CURRENCY.locale, {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 // ─── Blend status labels ──────────────────────────────────────────────────────
 

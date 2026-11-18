@@ -29,6 +29,18 @@ def _client() -> httpx.Client:
     )
 
 
+def _post(path: str, payload: dict) -> httpx.Response:
+    """
+    POST to the provider. Every failure mode (bad key, DNS, timeout, dropped
+    connection) is raised as ValueError, so callers have one exception to handle.
+    """
+    try:
+        with _client() as client:
+            return client.post(path, json=payload)
+    except httpx.HTTPError as exc:
+        raise ValueError(f"Could not reach the AI provider: {type(exc).__name__}: {exc}") from exc
+
+
 def complete_json(
     messages: list[dict],
     schema: dict,
@@ -59,9 +71,7 @@ def complete_json(
     }
 
     start = time.monotonic()
-    with _client() as client:
-        resp = client.post("/chat/completions", json=payload)
-
+    resp = _post("/chat/completions", payload)
     latency_ms = int((time.monotonic() - start) * 1000)
 
     if resp.status_code != 200:
@@ -69,8 +79,10 @@ def complete_json(
             f"OpenRouter returned {resp.status_code}: {resp.text[:300]}"
         )
 
-    data = resp.json()
-    raw_content: str = data["choices"][0]["message"]["content"]
+    try:
+        raw_content: str = resp.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise ValueError(f"Unexpected response shape from OpenRouter: {resp.text[:300]}") from exc
 
     # Some providers wrap JSON in markdown code fences — strip them
     stripped = raw_content.strip()
@@ -98,15 +110,16 @@ def embed(texts: list[str]) -> list[list[float]]:
 
     payload = {"model": embed_model, "input": texts}
 
-    with _client() as client:
-        resp = client.post("/embeddings", json=payload)
+    resp = _post("/embeddings", payload)
 
     if resp.status_code != 200:
         raise ValueError(
             f"Embeddings endpoint returned {resp.status_code}: {resp.text[:300]}"
         )
 
-    data = resp.json()
-    # Sort by index to preserve order
-    items = sorted(data["data"], key=lambda x: x["index"])
-    return [item["embedding"] for item in items]
+    try:
+        # Sort by index to preserve order
+        items = sorted(resp.json()["data"], key=lambda x: x["index"])
+        return [item["embedding"] for item in items]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ValueError(f"Unexpected embeddings response: {resp.text[:300]}") from exc

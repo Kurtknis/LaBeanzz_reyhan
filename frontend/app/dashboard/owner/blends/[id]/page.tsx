@@ -6,6 +6,8 @@ import { FlavorBar } from "@/components/ui/FlavorBar";
 import { BLEND_STATUS, type BlendStatus } from "@/product.config";
 import { BlendActions } from "./BlendActions";
 import { FeedbackSection } from "@/components/features/FeedbackSection";
+import { SubstitutePanel } from "@/components/features/SubstitutePanel";
+import { BlendReorderPanel } from "@/components/features/BlendReorderPanel";
 
 export const instant = false;
 
@@ -152,8 +154,14 @@ export default async function BlendDetailPage({ params }: Props) {
         </div>
       )}
 
+      {/* Out-of-stock warning and AI substitute */}
+      <SubstitutePanel blend={blend} />
+
       {/* Actions */}
       <BlendActions blend={blend} />
+
+      {/* Reorder */}
+      {blend.status !== "ARCHIVED" && <BlendReorderPanel blend={blend} />}
 
       {/* Feedback */}
       <div className="rounded-xl border border-border bg-surface p-6">

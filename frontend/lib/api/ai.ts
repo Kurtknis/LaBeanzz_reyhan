@@ -74,3 +74,35 @@ export async function generateBlend(
 export async function getGeneration(id: string): Promise<AIGeneration> {
   return apiFetch<AIGeneration>(`ai/generations/${id}`);
 }
+
+/** Propose a re-balanced recipe for a blend whose beans ran out. Saves nothing. */
+export async function substituteBean(body: {
+  blend_id: string;
+  missing_bean_id?: string;
+}): Promise<GenerateBlendResponse> {
+  return apiFetch<GenerateBlendResponse>("ai/substitute", { method: "POST", body });
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function sendChat(messages: ChatMessage[]): Promise<{ generation_id: string; reply: string }> {
+  return apiFetch("ai/chat", { method: "POST", body: { messages } });
+}
+
+export interface FeedbackAnalysis {
+  generation_id: string;
+  summary: string;
+  patterns: string[];
+  stats: Record<
+    string,
+    { count: number; overall: number; flavor: number; body: number; acidity: number; sweetness: number }
+  >;
+  taste_adjustments: Record<string, Record<string, number>>;
+}
+
+export async function analyzeFeedback(): Promise<FeedbackAnalysis> {
+  return apiFetch<FeedbackAnalysis>("ai/analyze-feedback", { method: "POST" });
+}

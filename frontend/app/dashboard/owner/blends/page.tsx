@@ -155,6 +155,12 @@ export default function MyBlendsPage() {
                 </div>
               )}
 
+              {blend.items.some((i) => i.bean && !["AVAILABLE", "LOW_STOCK"].includes(i.bean.status)) && (
+                <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+                  A bean in this blend is unavailable. Open it to find a substitute.
+                </p>
+              )}
+
               {/* Flavor profile */}
               {blend.predicted_profile?.computed && (
                 <div className="flex flex-col gap-1.5">

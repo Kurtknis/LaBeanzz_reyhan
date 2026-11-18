@@ -1,5 +1,6 @@
 """Pydantic schemas for AI endpoints."""
 from __future__ import annotations
+import uuid
 from typing import Literal
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -19,6 +20,41 @@ class GenerateBlendRequest(BaseModel):
         if len(v) > 1000:
             raise ValueError("prompt must be 1000 characters or fewer")
         return v
+
+
+class SubstituteRequest(BaseModel):
+    blend_id: uuid.UUID
+    # Omit to replace every bean in the blend that is currently unavailable
+    missing_bean_id: uuid.UUID | None = None
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_bounds(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("message must not be empty")
+        if len(v) > 2000:
+            raise ValueError("message must be 2000 characters or fewer")
+        return v
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+    @model_validator(mode="after")
+    def ends_with_user_turn(self) -> "ChatRequest":
+        if not self.messages:
+            raise ValueError("messages must not be empty")
+        if self.messages[-1].role != "user":
+            raise ValueError("the last message must come from the user")
+        if len(self.messages) > 20:
+            raise ValueError("a conversation can have at most 20 messages")
+        return self
 
 
 class RecipeItem(BaseModel):

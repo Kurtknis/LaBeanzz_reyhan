@@ -14,6 +14,8 @@ const NAV = [
   { href: "/dashboard/owner/beans", label: "Browse Beans", icon: "🌱" },
   { href: "/dashboard/owner/suppliers", label: "Suppliers", icon: "🏢" },
   { href: "/dashboard/owner/orders", label: "Orders", icon: "📦" },
+  { href: "/dashboard/owner/insights", label: "Insights", icon: "📈" },
+  { href: "/dashboard/owner/ai-lab", label: "AI Lab", icon: "🧪" },
 ];
 
 export default async function OwnerLayout({

@@ -169,3 +169,11 @@ def list_feedback(blend_id: uuid.UUID, owner_id: uuid.UUID) -> list[Feedback]:
         .order_by(Feedback.created_at.desc())
         .all()
     )
+
+
+def refresh_taste_adjustments(owner_id: uuid.UUID) -> dict:
+    """Recompute and persist taste_adjustments; returns the stored value."""
+    _recompute_taste_adjustments(owner_id)
+    db.session.commit()
+    profile = OwnerProfile.query.filter_by(user_id=owner_id).first()
+    return dict(profile.taste_adjustments or {}) if profile else {}

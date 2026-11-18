@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, g
 from pydantic import ValidationError
 from datetime import datetime, timezone
 
-from ..extensions import db
+from ..extensions import db, limiter
 from ..models import User, OwnerProfile, Supplier
 from ..services.google_auth import verify_google_token
 from ..services.jwt_service import create_token
@@ -13,6 +13,7 @@ auth_bp = Blueprint("auth", __name__)
 
 
 @auth_bp.post("/google")
+@limiter.limit("30 per minute")
 def google_login():
     """Verify a Google ID token, upsert the user, return an app JWT."""
     try:
@@ -63,6 +64,7 @@ def me():
 
 @auth_bp.post("/onboard")
 @require_auth
+@limiter.limit("10 per minute", key_func=lambda: str(g.current_user.id))
 def onboard():
     """Set the user's role once. Returns 409 if already onboarded."""
     user = g.current_user

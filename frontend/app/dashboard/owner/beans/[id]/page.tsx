@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getBean } from "@/lib/api/beans";
 import { getSupplier } from "@/lib/api/suppliers";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { OrderBeanForm } from "@/components/features/OrderBeanForm";
 import { FlavorBar } from "@/components/ui/FlavorBar";
 import { formatPrice, ROAST_LEVELS, UNITS } from "@/product.config";
 import { ApiError } from "@/lib/api/client";
@@ -124,6 +125,15 @@ export default async function OwnerBeanDetailPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      {/* Order */}
+      {(bean.status === "AVAILABLE" || bean.status === "LOW_STOCK") && bean.stock_kg > 0 ? (
+        <OrderBeanForm beanId={bean.id} pricePerKg={bean.price_per_kg} stockKg={bean.stock_kg} />
+      ) : (
+        <p className="rounded-xl border border-border bg-surface p-5 text-sm text-text-3">
+          This bean can&apos;t be ordered right now.
+        </p>
+      )}
 
       {/* Supplier card */}
       {supplier && (

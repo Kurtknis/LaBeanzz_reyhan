@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import Link from "next/link";
 import { getSupplierBeans } from "@/lib/api/beans";
+import { getOrders } from "@/lib/api/orders";
 
 export const instant = false;
 
@@ -9,6 +10,12 @@ export default async function SupplierDashboardPage() {
 
   let totalBeans = 0;
   let lowStockBeans = 0;
+  let pendingOrders = 0;
+  try {
+    pendingOrders = (await getOrders({ status: "PENDING", per_page: 1 })).total;
+  } catch {
+    // keep 0
+  }
   try {
     const data = await getSupplierBeans({ per_page: 100 });
     totalBeans = data.total;
@@ -25,7 +32,11 @@ export default async function SupplierDashboardPage() {
       value: totalBeans > 0 ? String(totalBeans) : "—",
       href: "/dashboard/supplier/beans",
     },
-    { label: "Pending orders", value: "—", href: "/dashboard/supplier/orders" },
+    {
+      label: "Pending orders",
+      value: pendingOrders > 0 ? String(pendingOrders) : "—",
+      href: "/dashboard/supplier/orders",
+    },
     {
       label: "Low / out of stock",
       value: lowStockBeans > 0 ? String(lowStockBeans) : "—",

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 
 from ..extensions import db
@@ -109,8 +110,15 @@ def supplier_delete_bean(bean_id):
     if bean is None:
         return jsonify({"error": "Not found."}), 404
 
-    db.session.delete(bean)
-    db.session.commit()
+    try:
+        db.session.delete(bean)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({
+            "error": "This bean is used in blends or orders and cannot be deleted. "
+                     "Set its status to Out of stock instead."
+        }), 409
     return "", 204
 
 
