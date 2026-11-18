@@ -29,6 +29,7 @@ from ..models.owner_profile import OwnerProfile
 from ..models.preset import Preset
 from ..schemas.ai import LLMBlendOutput, GenerateBlendRequest
 from . import ai_service, rag_service
+from .visibility import visible_supplier_ids_for
 
 # JSON schema passed to the LLM for structured output
 _BLEND_SCHEMA: dict = {
@@ -65,11 +66,17 @@ _BLEND_SCHEMA: dict = {
 def _get_candidate_beans(
     max_price: float | None,
     min_stock_kg: float = 0.5,
+    *,
+    owner_id: uuid.UUID | None = None,
 ) -> list[CoffeeBean]:
-    """Return all available/low-stock beans, optionally filtered by price."""
+    """
+    Return the available/low-stock beans this owner may order, optionally price-capped.
+    Beans from suppliers the owner cannot see or order from are never sent to the model.
+    """
     q = CoffeeBean.query.filter(
         CoffeeBean.status.in_(["AVAILABLE", "LOW_STOCK"]),
         CoffeeBean.stock_kg >= min_stock_kg,
+        CoffeeBean.supplier_id.in_(visible_supplier_ids_for(owner_id)),
     )
     if max_price is not None:
         q = q.filter(CoffeeBean.price_per_kg <= max_price)
@@ -276,7 +283,7 @@ def generate_blend(
     model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
     # 1. Candidates
-    candidates = _get_candidate_beans(request.max_price_per_kg)
+    candidates = _get_candidate_beans(request.max_price_per_kg, owner_id=owner_id)
     if exclude_bean_ids:
         candidates = [b for b in candidates if str(b.id) not in exclude_bean_ids]
     if not candidates:

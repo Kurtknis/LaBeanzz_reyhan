@@ -16,6 +16,7 @@ from ..models import AIGeneration, CoffeeBean, Feedback, OwnerProfile
 from ..schemas.ai import ChatRequest
 from . import ai_service, feedback_service, rag_service
 from .errors import ServiceError
+from .visibility import visible_supplier_ids_for
 
 _CHAT_SCHEMA = {
     "type": "object",
@@ -63,10 +64,11 @@ def _log(owner_id, kind, input_, *, output=None, raw=None, status="OK", latency=
 
 # Chat -----------------------------------------------------------------------
 
-def _catalog_block() -> str:
+def _catalog_block(owner_id) -> str:
     beans = (
         CoffeeBean.query
         .filter(CoffeeBean.status.in_(["AVAILABLE", "LOW_STOCK"]))
+        .filter(CoffeeBean.supplier_id.in_(visible_supplier_ids_for(owner_id)))
         .order_by(CoffeeBean.name)
         .limit(_MAX_CATALOG_BEANS)
         .all()
@@ -96,7 +98,7 @@ def chat(owner_id, body: ChatRequest) -> dict:
         "When you recommend specific beans, use only beans from the catalog below. "
         "Do not say you have learned or been trained on the owner's preferences; "
         "you can only refer to the feedback constraints listed here.\n\n"
-        f"## Catalog\n{_catalog_block()}\n\n"
+        f"## Catalog\n{_catalog_block(owner_id)}\n\n"
         f"## Owner's taste constraints (from their past feedback)\n{adjustments or 'None yet.'}\n\n"
         "## Coffee knowledge\n"
         + ("\n\n---\n\n".join(c.content for c in chunks) or "None retrieved.")

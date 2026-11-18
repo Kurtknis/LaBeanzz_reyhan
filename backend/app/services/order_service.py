@@ -21,6 +21,7 @@ from ..models import Blend, CoffeeBean, Order, OrderItem
 from . import business_rules as rules
 from . import stock_service
 from .errors import ServiceError
+from .visibility import visible_supplier_ids_for
 
 ORDERABLE_BEAN_STATUSES = ("AVAILABLE", "LOW_STOCK")
 
@@ -79,11 +80,14 @@ def create_orders(
 
     beans = _lock_beans(bean_id for bean_id, _ in lines)
     low_kg = _low_stock_kg()
+    # Suppliers this owner may order from. A bean outside that set is reported as
+    # "not found", exactly like an id that does not exist.
+    allowed_suppliers = set(db.session.execute(visible_supplier_ids_for(owner_id)).scalars())
 
     by_supplier: dict = defaultdict(list)
     for bean_id, qty in lines:
         bean = beans.get(bean_id)
-        if bean is None:
+        if bean is None or bean.supplier_id not in allowed_suppliers:
             raise ServiceError("One or more beans were not found.", 404)
         if bean.status not in ORDERABLE_BEAN_STATUSES:
             raise ServiceError(f"{bean.name} is not available to order.", 409)
@@ -184,7 +188,7 @@ def get_order(user, order_id):
 
 # Lifecycle ------------------------------------------------------------------
 
-def _release_stock(order: Order) -> None:
+def release_stock(order: Order) -> None:
     beans = _lock_beans(item.coffee_bean_id for item in order.items)
     low_kg = _low_stock_kg()
     for item in order.items:
@@ -206,7 +210,7 @@ def change_status(user, order_id, target: str, eta_date: date | None = None) -> 
         )
 
     if target == "CANCELLED":
-        _release_stock(order)
+        release_stock(order)
     elif target == "DELIVERED":
         for item in order.items:
             stock_service.add_stock(order.owner_id, item.coffee_bean_id, item.quantity_kg)

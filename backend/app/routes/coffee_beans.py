@@ -7,6 +7,7 @@ from ..extensions import db
 from ..models import CoffeeBean, Supplier
 from ..decorators import require_auth, require_role
 from ..schemas.beans import CreateBeanRequest, PatchBeanRequest, BeanFilterParams
+from ..services.visibility import visible_supplier_ids
 
 beans_bp = Blueprint("beans", __name__)
 
@@ -141,6 +142,8 @@ def list_beans():
         if supplier is None:
             return jsonify({"items": [], "total": 0, "page": 1, "pages": 0}), 200
         query = query.filter_by(supplier_id=supplier.id)
+    else:
+        query = query.filter(CoffeeBean.supplier_id.in_(visible_supplier_ids(g.current_user)))
 
     # Filters
     if params.origin:
@@ -177,7 +180,10 @@ def get_bean(bean_id):
         supplier = g.current_user.supplier_profile
         bean = CoffeeBean.query.filter_by(id=bean_id, supplier_id=supplier.id).first()
     else:
-        bean = CoffeeBean.query.get(bean_id)
+        bean = CoffeeBean.query.filter(
+            CoffeeBean.id == bean_id,
+            CoffeeBean.supplier_id.in_(visible_supplier_ids(g.current_user)),
+        ).first()
 
     if bean is None:
         return jsonify({"error": "Not found."}), 404

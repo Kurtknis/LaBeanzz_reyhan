@@ -27,6 +27,7 @@ def require_auth(f):
             return jsonify({"error": "User not found."}), 401
 
         g.current_user = user
+        g.token_claims = claims
         return f(*args, **kwargs)
 
     return wrapper

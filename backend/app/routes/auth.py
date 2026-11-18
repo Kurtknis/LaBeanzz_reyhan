@@ -1,12 +1,15 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 from pydantic import ValidationError
 from datetime import datetime, timezone
 
 from ..extensions import db, limiter
 from ..models import User, OwnerProfile, Supplier
 from ..services.google_auth import verify_google_token
-from ..services.jwt_service import create_token
+from ..services.jwt_service import create_token, decode_token
 from ..decorators import require_auth
+from ..responses import service_error
+from ..services import guest_service
+from ..services.errors import ServiceError
 from ..schemas.auth import GoogleLoginRequest, OnboardRequest
 
 auth_bp = Blueprint("auth", __name__)
@@ -45,6 +48,35 @@ def google_login():
 
     token = create_token(str(user.id), user.role)
     return jsonify({"token": token, "user": user.to_dict()}), 200
+
+
+@auth_bp.post("/guest")
+@limiter.limit(lambda: current_app.config["GUEST_RATE_LIMIT"], key_func=guest_service.client_ip)
+def guest_login():
+    """
+    Fallback sign-in for when Google is unavailable. Creates a throwaway account
+    and returns the same shape as /auth/google. The guest then onboards like anyone else.
+    404 when the feature flag is off, as if the route did not exist.
+    """
+    if not current_app.config["GUEST_LOGIN_ENABLED"]:
+        return jsonify({"error": "Not found."}), 404
+
+    try:
+        user = guest_service.create_guest(guest_service.client_ip())
+    except ServiceError as exc:
+        return service_error(exc)
+
+    token = create_token(str(user.id), None, is_guest=True)
+    claims = decode_token(token)
+    return jsonify({
+        "token": token,
+        "user": user.to_dict(),
+        "guest": {
+            "expires_at": datetime.fromtimestamp(claims["exp"], tz=timezone.utc).isoformat(),
+            "token_ttl_hours": current_app.config["GUEST_JWT_TTL_HOURS"],
+            "purge_after_hours": current_app.config["GUEST_PURGE_AFTER_HOURS"],
+        },
+    }), 200
 
 
 @auth_bp.get("/me")
@@ -98,6 +130,10 @@ def onboard():
 
     db.session.commit()
 
-    # Issue a fresh token that now carries the role
-    token = create_token(str(user.id), user.role)
+    # Issue a fresh token that now carries the role. A guest keeps the expiry they
+    # already had, so onboarding cannot be used to stretch a guest session.
+    expires_at = (
+        datetime.fromtimestamp(g.token_claims["exp"], tz=timezone.utc) if user.is_guest else None
+    )
+    token = create_token(str(user.id), user.role, is_guest=user.is_guest, expires_at=expires_at)
     return jsonify({"token": token, "user": user.to_dict()}), 201

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 from pydantic import ValidationError
 
 from ..decorators import require_auth, require_role
@@ -11,9 +11,19 @@ from ..services.errors import ServiceError
 
 ai_bp = Blueprint("ai", __name__)
 
-# One bucket of 10 requests per minute per user, shared by every /ai/* POST
+REGULAR_AI_LIMIT = "10 per minute"
+
+
+def _ai_limit_value() -> str:
+    # Decided from the user row loaded by require_auth, not from a token claim
+    if g.current_user.is_guest:
+        return current_app.config["GUEST_AI_LIMIT"]
+    return REGULAR_AI_LIMIT
+
+
+# One bucket per user, shared by every /ai/* POST. Guests get a lower budget.
 _ai_limit = limiter.shared_limit(
-    "10 per minute", scope="ai", key_func=lambda: str(g.current_user.id)
+    _ai_limit_value, scope="ai", key_func=lambda: str(g.current_user.id)
 )
 
 

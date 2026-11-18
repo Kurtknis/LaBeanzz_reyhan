@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { auth } from "@/auth";
 import { getDashboardSummary, type DashboardSummary } from "@/lib/api/insights";
 import { ReorderCard } from "@/components/features/ReorderCard";
@@ -21,7 +22,8 @@ export default async function OwnerDashboardPage() {
   let summary: DashboardSummary | null = null;
   try {
     summary = await getDashboardSummary();
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     summary = null;
   }
 

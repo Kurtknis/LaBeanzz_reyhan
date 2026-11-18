@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, g, jsonify
 from ..models import Supplier
 from ..decorators import require_auth, require_role
+from ..services.visibility import visible_supplier_ids
 
 suppliers_bp = Blueprint("suppliers", __name__)
 
@@ -22,7 +23,12 @@ def _public(supplier: Supplier) -> dict:
 @require_auth
 @require_role("OWNER")
 def list_suppliers():
-    suppliers = Supplier.query.order_by(Supplier.company_name).all()
+    suppliers = (
+        Supplier.query
+        .filter(Supplier.id.in_(visible_supplier_ids(g.current_user)))
+        .order_by(Supplier.company_name)
+        .all()
+    )
     return jsonify({"items": [_public(s) for s in suppliers]}), 200
 
 
@@ -30,7 +36,10 @@ def list_suppliers():
 @require_auth
 @require_role("OWNER")
 def get_supplier(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter(
+        Supplier.id == supplier_id,
+        Supplier.id.in_(visible_supplier_ids(g.current_user)),
+    ).first()
     if supplier is None:
         return jsonify({"error": "Not found."}), 404
     return jsonify(_public(supplier)), 200

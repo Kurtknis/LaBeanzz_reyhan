@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from ..extensions import db
 from ..models import Blend, BlendItem, CoffeeBean, AIGeneration
+from .visibility import visible_supplier_ids_for
 from ..schemas.blends import (
     CreateBlendRequest,
     PatchBlendRequest,
@@ -46,13 +47,16 @@ def _compute_profile(items: list[BlendItem]) -> dict:
     }
 
 
-def _resolve_beans(item_inputs, candidate_statuses=("AVAILABLE", "LOW_STOCK")):
+def _resolve_beans(owner_id, item_inputs, candidate_statuses=("AVAILABLE", "LOW_STOCK")):
     """
-    Fetch beans by id.  Returns (bean_map, error_message).
-    bean_map: {bean_id_str: CoffeeBean}
+    Fetch beans by id, limited to suppliers this owner can see.
+    Returns (bean_map, error_message). bean_map: {bean_id_str: CoffeeBean}
     """
     ids = [i.coffee_bean_id for i in item_inputs]
-    beans = CoffeeBean.query.filter(CoffeeBean.id.in_(ids)).all()
+    beans = CoffeeBean.query.filter(
+        CoffeeBean.id.in_(ids),
+        CoffeeBean.supplier_id.in_(visible_supplier_ids_for(owner_id)),
+    ).all()
     bean_map = {str(b.id): b for b in beans}
 
     missing = [bid for bid in ids if bid not in bean_map]
@@ -74,7 +78,7 @@ def _resolve_beans(item_inputs, candidate_statuses=("AVAILABLE", "LOW_STOCK")):
 
 def create_blend(owner_id, body: CreateBlendRequest) -> tuple[Blend, None] | tuple[None, str]:
     """Create a new blend inside a single transaction. Returns (blend, error)."""
-    bean_map, err = _resolve_beans(body.items)
+    bean_map, err = _resolve_beans(owner_id, body.items)
     if err:
         return None, err
 
@@ -143,7 +147,7 @@ def patch_blend(blend: Blend, body: PatchBlendRequest) -> tuple[Blend, None] | t
         blend.style = body.style
 
     if body.items is not None:
-        bean_map, err = _resolve_beans(body.items)
+        bean_map, err = _resolve_beans(blend.owner_id, body.items)
         if err:
             return None, err
 

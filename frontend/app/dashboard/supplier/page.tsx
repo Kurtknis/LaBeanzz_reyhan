@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { getSupplierBeans } from "@/lib/api/beans";
 import { getOrders } from "@/lib/api/orders";
 
@@ -13,7 +14,8 @@ export default async function SupplierDashboardPage() {
   let pendingOrders = 0;
   try {
     pendingOrders = (await getOrders({ status: "PENDING", per_page: 1 })).total;
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // keep 0
   }
   try {
@@ -22,7 +24,8 @@ export default async function SupplierDashboardPage() {
     lowStockBeans = data.items.filter(
       (b) => b.status === "LOW_STOCK" || b.status === "OUT_OF_STOCK"
     ).length;
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // keep 0
   }
 

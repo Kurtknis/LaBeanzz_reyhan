@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from ..extensions import db
 from ..models import CoffeeBean, OwnerStock
 from .errors import ServiceError
+from .visibility import visible_supplier_ids_for
 
 
 def list_stock(owner_id) -> list[OwnerStock]:
@@ -41,7 +42,11 @@ def add_stock(owner_id, bean_id, quantity_kg: Decimal) -> None:
 
 def set_stock(owner_id, bean_id, quantity_kg: Decimal) -> OwnerStock:
     """Manual adjustment: overwrite the on-hand quantity."""
-    if db.session.get(CoffeeBean, bean_id) is None:
+    visible = CoffeeBean.query.filter(
+        CoffeeBean.id == bean_id,
+        CoffeeBean.supplier_id.in_(visible_supplier_ids_for(owner_id)),
+    ).first()
+    if visible is None:
         raise ServiceError("Bean not found.", 404)
 
     now = datetime.now(timezone.utc)

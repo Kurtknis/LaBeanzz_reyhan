@@ -3,6 +3,9 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import type { AppSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { GuestBanner } from "@/components/features/GuestBanner";
+import { guestSessionExpired } from "@/lib/guest-session";
+import { SESSION_EXPIRED_CODE } from "@/product.config";
 
 export const metadata: Metadata = { title: "LaBeans — Owner" };
 export const instant = false;
@@ -25,6 +28,7 @@ export default async function OwnerLayout({
 }) {
   const session = (await auth()) as AppSession | null;
   if (!session || session.user?.role !== "OWNER") redirect("/login");
+  if (guestSessionExpired(session)) redirect(`/login?error=${SESSION_EXPIRED_CODE}`);
 
   return (
     <div className="flex min-h-screen">
@@ -62,6 +66,7 @@ export default async function OwnerLayout({
 
       {/* Main content */}
       <div className="flex flex-1 flex-col">
+        {session.user?.isGuest && <GuestBanner purgeHours={session.guestPurgeHours} />}
         {/* Mobile top bar */}
         <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
           <span className="text-base font-semibold tracking-tight text-brand-700">

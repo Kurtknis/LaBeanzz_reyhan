@@ -16,6 +16,13 @@ def _normalise_db_url(url: str) -> str:
     return url
 
 
+def _flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 class Base:
     SECRET_KEY: str = os.environ["SECRET_KEY"]
     DATABASE_URL: str = _normalise_db_url(os.environ["DATABASE_URL"])
@@ -34,13 +41,30 @@ class Base:
     REORDER_THRESHOLD_DAYS: float = float(os.getenv("REORDER_THRESHOLD_DAYS", "10"))
     RATELIMIT_ENABLED: bool = os.getenv("RATELIMIT_ENABLED", "true").lower() != "false"
 
+    # Guest login (fallback when Google sign-in is unavailable) ------------------
+    # Lifetime of a guest's app JWT, and how long guest data is kept before the purge job removes it
+    GUEST_JWT_TTL_HOURS: float = float(os.getenv("GUEST_JWT_TTL_HOURS", "4"))
+    GUEST_PURGE_AFTER_HOURS: float = float(os.getenv("GUEST_PURGE_AFTER_HOURS", "24"))
+    # Abuse and cost controls
+    GUEST_RATE_LIMIT: str = os.getenv("GUEST_RATE_LIMIT", "5 per minute")        # /auth/guest, per IP
+    GUEST_MAX_PER_IP_PER_DAY: int = int(os.getenv("GUEST_MAX_PER_IP_PER_DAY", "10"))
+    GUEST_AI_LIMIT: str = os.getenv("GUEST_AI_LIMIT", "3 per minute;30 per day")  # /ai/*, per guest
+    # A guest owner may only order from seeded demo suppliers (google_sub starts with the prefix)
+    GUEST_ORDER_DEMO_SUPPLIERS_ONLY: bool = _flag("GUEST_ORDER_DEMO_SUPPLIERS_ONLY", True)
+    DEMO_SUPPLIER_SUB_PREFIX: str = os.getenv("DEMO_SUPPLIER_SUB_PREFIX", "seed_")
+    # The Next.js server forwards the visitor's IP in X-Client-IP. It is believed only when the
+    # request also carries this secret in X-Internal-Secret; otherwise the socket address is used.
+    GUEST_PROXY_SECRET: str = os.getenv("GUEST_PROXY_SECRET", "")
+
 
 class Development(Base):
     DEBUG = True
+    GUEST_LOGIN_ENABLED: bool = _flag("GUEST_LOGIN_ENABLED", True)
 
 
 class Production(Base):
     DEBUG = False
+    GUEST_LOGIN_ENABLED: bool = _flag("GUEST_LOGIN_ENABLED", False)
 
 
 config_map = {

@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import type { AppSession } from "@/lib/session";
 
 type Role = "OWNER" | "SUPPLIER";
 
@@ -17,8 +16,7 @@ interface FormState {
 }
 
 export default function OnboardingPage() {
-  const { data: rawSession, update } = useSession();
-  const session = rawSession as AppSession | null;
+  const { update } = useSession();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +43,8 @@ export default function OnboardingPage() {
       try {
         const res = await fetch("/api/proxy/auth/onboard", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.appToken}`,
-          },
+          // /api/proxy attaches the signed-in user's token on the server
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             role: form.role,
             business_name: form.businessName || undefined,
@@ -66,7 +62,10 @@ export default function OnboardingPage() {
         }
 
         const data = await res.json();
-        await update({ appToken: data.token, role: data.user.role });
+        // Ask the server to re-read the role from the API. The (empty) payload is required:
+        // update() with no argument only re-fetches the session instead of triggering a refresh.
+        // Nothing from the browser is trusted, and no token is passed through here.
+        await update({});
 
         router.replace(
           data.user.role === "OWNER" ? "/dashboard/owner" : "/dashboard/supplier"

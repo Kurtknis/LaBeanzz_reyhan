@@ -1,5 +1,6 @@
 import { getSuppliers } from "@/lib/api/suppliers";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 
 export const instant = false;
 
@@ -7,7 +8,8 @@ export default async function OwnerSuppliersPage() {
   let result;
   try {
     result = await getSuppliers();
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     result = { items: [] };
   }
 

@@ -8,6 +8,7 @@ from flask import current_app
 
 from ..models import Blend, CoffeeBean, Order, OrderItem, OwnerStock
 from . import business_rules as rules
+from .visibility import visible_supplier_ids_for
 
 
 def _now() -> datetime:
@@ -99,7 +100,7 @@ def volume_by_month(owner_id, months: int = 6) -> dict:
 
 # Producer spotlight ---------------------------------------------------------
 
-def producer_spotlight() -> dict | None:
+def producer_spotlight(owner_id) -> dict | None:
     """
     A bean with a producer story, rotating daily. Built only from existing
     bean and supplier fields.
@@ -108,6 +109,7 @@ def producer_spotlight() -> dict | None:
         CoffeeBean.query
         .filter(CoffeeBean.producer_story.isnot(None), CoffeeBean.producer_story != "")
         .filter(CoffeeBean.status.in_(["AVAILABLE", "LOW_STOCK"]))
+        .filter(CoffeeBean.supplier_id.in_(visible_supplier_ids_for(owner_id)))
         .order_by(CoffeeBean.id)
         .all()
     )
@@ -153,5 +155,5 @@ def dashboard_summary(owner_id) -> dict:
         "month_spend": float(spend[this_month]),
         "currency": current_app.config["DEFAULT_CURRENCY"],
         "reorder": [r for r in reorder_status(owner_id) if r["reorder_soon"]][:3],
-        "spotlight": producer_spotlight(),
+        "spotlight": producer_spotlight(owner_id),
     }

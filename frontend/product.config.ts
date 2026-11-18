@@ -163,3 +163,59 @@ export type BlendStyle = "espresso" | "filter" | "milk";
 // ─── Pagination default ───────────────────────────────────────────────────────
 
 export const PAGE_SIZE = 20;
+
+// ─── Sign-in and guest access ─────────────────────────────────────────────────
+
+export const LOGIN_COPY = {
+  tagline: "Coffee blend management",
+  title: "Sign in to your account",
+  google: "Continue with Google",
+  guest: "Continue as Guest",
+  guestHint: "No Google account needed. Guest data is temporary.",
+  guestPending: "Starting a guest session…",
+  divider: "or",
+  terms: "By signing in you agree to our terms of service.",
+} as const;
+
+/** Auth.js error codes that mean "the Google leg of sign-in is broken", not "the user said no". */
+export const GOOGLE_FAILURE_CODES = [
+  "OAuthSignin",
+  "OAuthCallback",
+  "OAuthCreateAccount",
+  "Configuration",
+  "Callback",
+] as const;
+
+export const SESSION_EXPIRED_CODE = "SessionExpired";
+
+export const LOGIN_MESSAGES = {
+  googleDownWithGuest:
+    "Google sign-in isn't working right now. You can continue as a guest instead.",
+  googleDown: "Google sign-in isn't working right now. Please try again in a few minutes.",
+  accessDenied: "Google sign-in was cancelled or not allowed for this account.",
+  sessionExpired: "Your session has expired. Please sign in again.",
+  guestDisabled: "Guest access isn't available right now.",
+  guestLimited: "Too many guest sessions have been started from your network. Try again later, or sign in with Google.",
+  guestUnavailable: "We couldn't start a guest session. Please try again.",
+  generic: "Something went wrong signing you in. Please try again.",
+} as const;
+
+/** Codes thrown by the guest provider's authorize(), as returned by signIn(). */
+export const GUEST_ERROR_CODES = {
+  guest_disabled: "guestDisabled",
+  guest_limited: "guestLimited",
+  guest_unavailable: "guestUnavailable",
+} as const satisfies Record<string, keyof typeof LOGIN_MESSAGES>;
+
+export const GUEST_BANNER = {
+  message: (hours?: number) =>
+    hours
+      ? `You're using a guest account. Data is temporary and may be deleted after ${hours} hours.`
+      : "You're using a guest account. Data is temporary and may be deleted soon.",
+  signInWithGoogle: "Sign in with Google",
+  confirmText:
+    "Signing in with Google starts a separate account. Anything you've made as a guest won't carry over.",
+  confirm: "Continue to sign in",
+  cancel: "Stay as guest",
+  dismiss: "Dismiss",
+} as const;

@@ -23,6 +23,12 @@ export default auth((req) => {
 
   const role = session.user?.role;
 
+  // Onboarding itself calls the API before a role exists, so that call must not be bounced
+  // back to /onboarding. Flask decides what a role-less user may do (only /auth/me and /auth/onboard).
+  if (pathname.startsWith("/api/proxy/auth/")) {
+    return NextResponse.next();
+  }
+
   // Signed in but no role yet → send to onboarding (unless already there)
   if (!role && pathname !== "/onboarding") {
     return NextResponse.redirect(new URL("/onboarding", req.nextUrl.origin));

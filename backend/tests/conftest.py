@@ -59,9 +59,10 @@ def _clean_tables(request):
         return
     from sqlalchemy import text
 
-    from app.extensions import db
+    from app.extensions import db, limiter
 
     application = request.getfixturevalue("app")
+    limiter.reset()  # in-memory counters would otherwise leak between tests
     with application.app_context():
         db.session.rollback()
         db.session.execute(text("TRUNCATE users, knowledge_chunks CASCADE"))
@@ -79,14 +80,14 @@ class Factory:
     def __init__(self, app):
         self.app = app
 
-    def user(self, role: str, name: str = "Test"):
+    def user(self, role: str, name: str = "Test", google_sub: str | None = None):
         from app.extensions import db
         from app.models import OwnerProfile, Supplier, User
         from app.services.jwt_service import create_token
 
         with self.app.app_context():
             user = User(
-                google_sub=uuid.uuid4().hex,
+                google_sub=google_sub or uuid.uuid4().hex,
                 email=f"{uuid.uuid4().hex}@test.dev",
                 name=name,
                 role=role,

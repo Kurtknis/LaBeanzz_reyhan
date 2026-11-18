@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import Link from "next/link";
 import { getBean } from "@/lib/api/beans";
 import { getSupplier } from "@/lib/api/suppliers";
@@ -31,7 +31,8 @@ export default async function OwnerBeanDetailPage({ params }: Props) {
   let supplier = null;
   try {
     supplier = await getSupplier(bean.supplier_id);
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // Supplier lookup failing is not fatal for the page
   }
 

@@ -7,6 +7,9 @@
  * without them the proxy sees no session and redirects to /login.
  */
 
+import { redirect } from "next/navigation";
+import { SESSION_EXPIRED_CODE } from "@/product.config";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -17,6 +20,24 @@ export class ApiError extends Error {
 }
 
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+/**
+ * The session is no longer valid (a guest's 4-hour token ran out, the account was
+ * purged, a Google session timed out). Clear the stale cookie and send the user to
+ * the login page with an explanation instead of leaving a half-working page.
+ */
+async function endSession(): Promise<never> {
+  const loginUrl = `/login?error=${SESSION_EXPIRED_CODE}`;
+  if (typeof window === "undefined") redirect(loginUrl);
+
+  const { signOut } = await import("next-auth/react");
+  await signOut({ redirect: false }).catch(() => undefined);
+  // A hard navigation on purpose: it throws away all client state tied to the dead session
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign(loginUrl);
+  // Never settle: callers must not flash an error state while the browser navigates away
+  return new Promise<never>(() => undefined);
+}
 
 interface ServerContext {
   base: string;
@@ -69,8 +90,9 @@ export async function apiFetch<T>(
     redirect: "manual",
   });
 
-  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
-    throw new ApiError(401, { error: "Not signed in." });
+  // A redirect means the proxy found no session; a 401 means the API rejected the token
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400) || res.status === 401) {
+    return endSession();
   }
 
   if (!res.ok) {

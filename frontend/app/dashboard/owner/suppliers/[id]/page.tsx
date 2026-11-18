@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import Link from "next/link";
 import { getSupplier } from "@/lib/api/suppliers";
 import { getBeans } from "@/lib/api/beans";
@@ -25,7 +25,8 @@ export default async function OwnerSupplierDetailPage({ params }: Props) {
   let beansResult = { items: [] as Awaited<ReturnType<typeof getBeans>>["items"] };
   try {
     beansResult = await getBeans({ supplier_id: id, per_page: 50 });
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // Non-fatal
   }
 
